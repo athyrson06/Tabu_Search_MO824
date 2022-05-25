@@ -195,10 +195,13 @@ public abstract class AbstractTS<E> {
 			/* Choose a candidate randomly from the RCL */
 			int rndIndex = rng.nextInt(RCL.size());
 			E inCand = RCL.get(rndIndex);
-			CL.remove(inCand);
-			sol.add(inCand);
-			ObjFunction.evaluate(sol);
-			RCL.clear();
+			//Change to adapt to KQBF, with QBF this is always true
+			if(ObjFunction.shouldInsert(inCand, sol)){
+				CL.remove(inCand);
+				sol.add(inCand);
+				ObjFunction.evaluate(sol);
+				RCL.clear();
+			}
 
 		}
 

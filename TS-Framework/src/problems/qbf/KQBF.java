@@ -1,13 +1,10 @@
 package problems.qbf;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StreamTokenizer;
-import java.util.Arrays;
 import problems.Evaluator;
 import solutions.Solution;
+
+import java.io.*;
+import java.util.Arrays;
 
 /**
  * A quadractic binary function (QBF) is a function that can be expressed as the
@@ -23,12 +20,17 @@ import solutions.Solution;
  * @author ccavellucci, fusberti
  *
  */
-public class QBF implements Evaluator<Integer> {
+public class KQBF implements Evaluator<Integer> {
 
 	/**
 	 * Dimension of the domain.
 	 */
 	public final Integer size;
+
+	/**
+	 *  Knapsack capacity.
+	 */
+	public Double capacity;
 
 	/**
 	 * The array of numbers representing the domain.
@@ -41,16 +43,21 @@ public class QBF implements Evaluator<Integer> {
 	public Double[][] A;
 
 	/**
+	 * The Vector W of weights for the QBF f(x) = x'.A.x
+	 */
+	public Double[] W;
+
+	/**
 	 * The constructor for QuadracticBinaryFunction class. The filename of the
 	 * input for setting matrix of coefficients A of the QBF. The dimension of
 	 * the array of variables x is returned from the {@link #readInput} method.
-	 * 
+	 *
 	 * @param filename
 	 *            Name of the file containing the input for setting the QBF.
 	 * @throws IOException
 	 *             Necessary for I/O operations.
 	 */
-	public QBF(String filename) throws IOException {
+	public KQBF(String filename) throws IOException {
 		size = readInput(filename);
 		variables = allocateVariables();
 	}
@@ -83,6 +90,10 @@ public class QBF implements Evaluator<Integer> {
 		return size;
 	}
 
+	public Double getCapacity() {
+		return capacity;
+	}
+
 	/**
 	 * {@inheritDoc} In the case of a QBF, the evaluation correspond to
 	 * computing a matrix multiplication x'.A.x. A better way to evaluate this
@@ -102,13 +113,15 @@ public class QBF implements Evaluator<Integer> {
 
 	@Override
 	public Double evaluateWeight(Solution<Integer> sol) {
-		//just because of the interface, doesn't apply here
-		return 0.0;
+
+		setVariables(sol);
+		return evaluateWeightQBF();
 	}
 
 	@Override
 	public Boolean shouldInsert(Integer cand, Solution<Integer> sol){
-		return Boolean.TRUE;
+		setVariables(sol);
+		return evaluateWeightQBF() + W[cand] <= capacity;
 	}
 
 	/**
@@ -133,6 +146,21 @@ public class QBF implements Evaluator<Integer> {
 
 		return sum;
 
+	}
+
+	/**
+	 * Evaluates a weight of QBF by calculating the vector multiplication that defines the
+	 * QBF: f(x) = x.V .
+	 *
+	 * @return The value of the QBF.
+	 */
+	public Double evaluateWeightQBF() {
+
+		Double sum = (double) 0;
+		for (int i = 0; i < size; i++) {
+			sum += W[i] * variables[i];
+		}
+		return sum;
 	}
 
 	/*
@@ -231,6 +259,7 @@ public class QBF implements Evaluator<Integer> {
 
 		if (in == out)
 			return 0.0;
+
 		if (variables[in] == 1)
 			return evaluateRemovalQBF(out);
 		if (variables[out] == 0)
@@ -289,7 +318,15 @@ public class QBF implements Evaluator<Integer> {
 
 		stok.nextToken();
 		Integer _size = (int) stok.nval;
+		stok.nextToken();
+		capacity = (double) stok.nval;
 		A = new Double[_size][_size];
+		W = new Double[_size];
+
+		for (int i = 0; i < _size; i++) {
+			stok.nextToken();
+			W[i] = stok.nval;
+		}
 
 		for (int i = 0; i < _size; i++) {
 			for (int j = i; j < _size; j++) {
@@ -301,7 +338,6 @@ public class QBF implements Evaluator<Integer> {
 		}
 
 		return _size;
-
 	}
 
 	/**
@@ -326,14 +362,21 @@ public class QBF implements Evaluator<Integer> {
 	 * Prints matrix {@link #A}.
 	 */
 	public void printMatrix() {
-
 		for (int i = 0; i < size; i++) {
 			for (int j = i; j < size; j++) {
 				System.out.print(A[i][j] + " ");
 			}
 			System.out.println();
 		}
+	}
 
+	/**
+	 * Prints vector {@link #W}.
+	 */
+	public void printVector(){
+		for (int i = 0; i < size; i++) {
+			System.out.println(W[i] + " ");
+		}
 	}
 
 	/**
@@ -344,42 +387,49 @@ public class QBF implements Evaluator<Integer> {
 	 */
 	public static void main(String[] args) throws IOException {
 
-		QBF qbf = new QBF("instances/qbf/qbf040");
-		qbf.printMatrix();
+		KQBF kqbf = new KQBF("instances/kqbf/kqbf020");
+		kqbf.printMatrix();
+		kqbf.printVector();
 		Double maxVal = Double.NEGATIVE_INFINITY;
-		
+		Double weight = 0.0;
+
 		// evaluates randomly generated values for the domain, saving the best
 		// one.
-		for (int i = 0; i < 100000; i++) {
-			for (int j = 0; j < qbf.size; j++) {
+		for (int i = 0; i < 10000000; i++) {
+			for (int j = 0; j < kqbf.size; j++) {
 				if (Math.random() < 0.5)
-					qbf.variables[j] = 0.0;
+					kqbf.variables[j] = 0.0;
 				else
-					qbf.variables[j] = 1.0;
+					kqbf.variables[j] = 1.0;
 			}
 			//System.out.println("x = " + Arrays.toString(qbf.variables));
-			Double eval = qbf.evaluateQBF();
+			Double eval = kqbf.evaluateQBF();
+			Double cost = kqbf.evaluateWeightQBF();
 			//System.out.println("f(x) = " + eval);
-			if (maxVal < eval)
+			//just generating a random solution with the restriction
+			if (maxVal < eval && cost <= kqbf.getCapacity()){
 				maxVal = eval;
+				weight = kqbf.getCapacity();
+			}
 		}
 		System.out.println("maxVal = " + maxVal);
+		System.out.println("weight = " + weight);
 
 		// evaluates the zero array.
-		for (int j = 0; j < qbf.size; j++) {
-			qbf.variables[j] = 0.0;
+		for (int j = 0; j < kqbf.size; j++) {
+			kqbf.variables[j] = 0.0;
 		}
-		System.out.println("x = " + Arrays.toString(qbf.variables));
-		System.out.println("f(x) = " + qbf.evaluateQBF());
+		System.out.println("x = " + Arrays.toString(kqbf.variables));
+		System.out.println("f(x) = " + kqbf.evaluateQBF());
 
 		// evaluates the all-ones array.
-		for (int j = 0; j < qbf.size; j++) {
-			qbf.variables[j] = 1.0;
+		for (int j = 0; j < kqbf.size; j++) {
+			kqbf.variables[j] = 1.0;
 		}
-		System.out.println("x = " + Arrays.toString(qbf.variables));
-		System.out.println("f(x) = " + qbf.evaluateQBF());
-		
-		
+		System.out.println("x = " + Arrays.toString(kqbf.variables));
+		System.out.println("f(x) = " + kqbf.evaluateQBF());
+
+
 
 	}
 

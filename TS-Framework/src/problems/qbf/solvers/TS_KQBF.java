@@ -1,13 +1,14 @@
 package problems.qbf.solvers;
 
-import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-
 import metaheuristics.tabusearch.AbstractTS;
+import problems.qbf.KQBF;
+import problems.qbf.KQBF_Inverse;
 import problems.qbf.QBF_Inverse;
 import solutions.Solution;
 
+import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 
 
 /**
@@ -18,14 +19,14 @@ import solutions.Solution;
  * 
  * @author ccavellucci, fusberti
  */
-public class TS_QBF extends AbstractTS<Integer> {
-	
+public class TS_KQBF extends AbstractTS<Integer> {
+
 	private final Integer fake = new Integer(-1);
 
 	/**
 	 * Constructor for the TS_QBF class. An inverse QBF objective function is
 	 * passed as argument for the superclass constructor.
-	 * 
+	 *
 	 * @param tenure
 	 *            The Tabu tenure parameter.
 	 * @param iterations
@@ -36,8 +37,8 @@ public class TS_QBF extends AbstractTS<Integer> {
 	 * @throws IOException
 	 *             necessary for I/O operations.
 	 */
-	public TS_QBF(Integer tenure, Integer iterations, String filename) throws IOException {
-		super(new QBF_Inverse(filename), tenure, iterations);
+	public TS_KQBF(Integer tenure, Integer iterations, String filename) throws IOException {
+		super(new KQBF_Inverse(filename), tenure, iterations);
 	}
 
 	/* (non-Javadoc)
@@ -166,10 +167,17 @@ public class TS_QBF extends AbstractTS<Integer> {
 			TL.add(fake);
 		}
 		TL.poll();
+		//I can only add if it doesn't exceed the capacity
 		if (bestCandIn != null) {
-			sol.add(bestCandIn);
-			CL.remove(bestCandIn);
-			TL.add(bestCandIn);
+			if(ObjFunction.shouldInsert(bestCandIn, sol)){
+				sol.add(bestCandIn);
+				CL.remove(bestCandIn);
+				TL.add(bestCandIn);
+			} else {
+				//If I cant add I just remove from the candidate list and add it to the tabu list
+				CL.remove(bestCandIn);
+				TL.add(bestCandIn);
+			}
 		} else {
 			TL.add(fake);
 		}
@@ -179,15 +187,17 @@ public class TS_QBF extends AbstractTS<Integer> {
 	}
 
 	/**
-	 * A main method used for testing the TS metaheuristic.
-	 * 
+	 * A main method used for testing the GRASP metaheuristic.
+	 *
 	 */
 	public static void main(String[] args) throws IOException {
 
 		long startTime = System.currentTimeMillis();
-		TS_QBF tabusearch = new TS_QBF(20, 1000, "instances/qbf/qbf100");
+		TS_KQBF tabusearch = new TS_KQBF(20, 1000, "instances/kqbf/kqbf100");
 		Solution<Integer> bestSol = tabusearch.solve();
 		System.out.println("maxVal = " + bestSol);
+		KQBF evaluateCost = new KQBF("instances/kqbf/kqbf100");
+		System.out.println("weight of solution = " + evaluateCost.evaluateWeight(bestSol));
 		long endTime   = System.currentTimeMillis();
 		long totalTime = endTime - startTime;
 		System.out.println("Time = "+(double)totalTime/(double)1000+" seg");
